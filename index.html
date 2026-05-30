@@ -1092,63 +1092,6 @@
             gestureText.textContent = text;
         }
 
-        // 手指数量检测函数
-        function countFingers(lm) {
-            let count = 0;
-            
-            // 拇指：检测是否向外展开
-            const thumbTip = lm[4];
-            const thumbIP = lm[3];
-            const thumbExtended = Math.abs(thumbTip.x - lm[0].x) > Math.abs(thumbIP.x - lm[0].x);
-            if (thumbExtended) count++;
-            
-            // 食指
-            const indexTip = lm[8];
-            const indexPIP = lm[6];
-            if (indexTip.y < indexPIP.y) count++;
-            
-            // 中指
-            const middleTip = lm[12];
-            const middlePIP = lm[10];
-            if (middleTip.y < middlePIP.y) count++;
-            
-            // 无名指
-            const ringTip = lm[16];
-            const ringPIP = lm[14];
-            if (ringTip.y < ringPIP.y) count++;
-            
-            // 小指
-            const pinkyTip = lm[20];
-            const pinkyPIP = lm[18];
-            if (pinkyTip.y < pinkyPIP.y) count++;
-            
-            return count;
-        }
-
-        // 手势数字处理函数
-        let lastFingerCount = 0;
-        let lastGestureChangeTime = 0;
-        const gestureCooldown = 1500;
-
-        function handleFingerCount(count) {
-            const now = performance.now();
-            
-            // 只在检测到1-5且与上次不同时处理
-            if (count >= 1 && count <= 5 && count !== lastFingerCount && now - lastGestureChangeTime > gestureCooldown) {
-                lastFingerCount = count;
-                lastGestureChangeTime = now;
-                
-                // 根据手指数量切换到对应的数字形状
-                const numberShapes = ['number1', 'number2', 'number3', 'number4', 'iLoveYou'];
-                if (count >= 1 && count <= 5) {
-                    switchShape(numberShapes[count - 1]);
-                    updateGestureUI('', `数字 ${count}`);
-                }
-            } else if (count === 0) {
-                lastFingerCount = 0;
-            }
-        }
-
         async function detectHands() {
             if (!cameraReady || !handLandmarker || detecting) return;
             if (cameraPreview.readyState < 2) return;
@@ -1172,10 +1115,6 @@
                     });
                     avg /= 5;
                     targetHandOpenness = Math.max(0, Math.min(1, (dTP * 2.3 + avg * 1.7) / 2.2));
-                    
-                    // 手指数量检测
-                    const fingerCount = countFingers(lm);
-                    handleFingerCount(fingerCount);
                     
                     // 滑动检测：使用手腕位置
                     const handCenter = { x: wrist.x, y: wrist.y, time: now };
