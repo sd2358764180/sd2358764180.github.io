@@ -472,6 +472,13 @@
         let lastHandDetectionTime = 0;
         const handDetectionInterval = 120;
         let panelVisible = true;
+        
+        // 手势滑动检测相关
+        let handPositionHistory = [];
+        const swipeThreshold = 0.15;
+        const swipeHistoryLength = 10;
+        let lastSwipeTime = 0;
+        const swipeCooldown = 800;
 
         // ---------- Three.js 场景 ----------
         const scene = new THREE.Scene();
@@ -691,6 +698,18 @@
             document.querySelectorAll('.model-btn').forEach(b => b.classList.toggle('active', b.dataset.shape === key));
         }
 
+        function switchToNextShape() {
+            const currentIndex = shapeList.findIndex(s => s.key === currentShape);
+            const nextIndex = (currentIndex + 1) % shapeList.length;
+            switchShape(shapeList[nextIndex].key);
+        }
+
+        function switchToPrevShape() {
+            const currentIndex = shapeList.findIndex(s => s.key === currentShape);
+            const prevIndex = (currentIndex - 1 + shapeList.length) % shapeList.length;
+            switchShape(shapeList[prevIndex].key);
+        }
+
         function setParticleCount(count) {
             count = Math.max(1000, Math.min(MAX_PARTICLES, count));
             if (count === currentParticleCount) return;
@@ -799,9 +818,45 @@
                     });
                     avg /= 5;
                     targetHandOpenness = Math.max(0, Math.min(1, (dTP * 2.3 + avg * 1.7) / 2.2));
-                    updateGestureUI('', `手势: ${Math.round(targetHandOpenness * 100)}%`);
+                    
+                    // 滑动检测：使用手腕位置
+                    const handCenter = { x: wrist.x, y: wrist.y, time: now };
+                    handPositionHistory.push(handCenter);
+                    
+                    // 保持历史记录长度
+                    if (handPositionHistory.length > swipeHistoryLength) {
+                        handPositionHistory.shift();
+                    }
+                    
+                    // 检测滑动
+                    if (handPositionHistory.length >= swipeHistoryLength && now - lastSwipeTime > swipeCooldown) {
+                        const oldest = handPositionHistory[0];
+                        const newest = handPositionHistory[handPositionHistory.length - 1];
+                        const deltaX = newest.x - oldest.x;
+                        const deltaY = newest.y - oldest.y;
+                        
+                        // 检测水平滑动
+                        if (Math.abs(deltaX) > swipeThreshold && Math.abs(deltaX) > Math.abs(deltaY) * 1.5) {
+                            if (deltaX > 0) {
+                                // 向右滑动 -> 下一个形状
+                                switchToNextShape();
+                                updateGestureUI('', '向右滑动 → 下一个');
+                            } else {
+                                // 向左滑动 -> 上一个形状
+                                switchToPrevShape();
+                                updateGestureUI('', '向左滑动 ← 上一个');
+                            }
+                            lastSwipeTime = now;
+                            handPositionHistory = []; // 清空历史，避免连续触发
+                        } else {
+                            updateGestureUI('', `手势: ${Math.round(targetHandOpenness * 100)}%`);
+                        }
+                    } else {
+                        updateGestureUI('', `手势: ${Math.round(targetHandOpenness * 100)}%`);
+                    }
                 } else {
                     targetHandOpenness *= 0.88;
+                    handPositionHistory = []; // 未检测到手部时清空历史
                     updateGestureUI('pending', '未检测到手部');
                 }
             } catch (e) {}
